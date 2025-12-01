@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { CheckCircle2, XCircle, AlertCircle, Loader2, Github, GitBranch, Shield } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { CheckCircle2, XCircle, AlertCircle, Loader2, Github, GitBranch, Shield, Code, Copy, Check, ExternalLink, AlertTriangle, Info } from 'lucide-react'
 
 type ValidationResult = {
   ok: boolean
@@ -11,6 +11,19 @@ type ValidationResult = {
   branch?: string
   defaultBranch?: string
   branches?: string[]
+  codeMetrics?: {
+    fileCount: number
+    languages: string[]
+    primaryLanguage: string
+    hasTests: boolean
+    hasReadme: boolean
+    hasLicense: boolean
+    hasCI: boolean
+    hasDockerfile: boolean
+    configFiles: string[]
+    qualityScore: number
+    projectType: string
+  }
   reason?: string
 }
 
@@ -19,10 +32,59 @@ export function RepoValidator() {
   const [selectedBranch, setSelectedBranch] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ValidationResult | null>(null)
+  const [urlError, setUrlError] = useState('')
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  // Validate GitHub URL format
+  const validateUrl = (input: string): boolean => {
+    if (!input) {
+      setUrlError('')
+      return false
+    }
+    try {
+      const urlObj = new URL(input)
+      if (urlObj.hostname !== 'github.com') {
+        setUrlError('Must be a GitHub.com repository URL')
+        return false
+      }
+      const pathParts = urlObj.pathname.split('/').filter(Boolean)
+      if (pathParts.length < 2) {
+        setUrlError('Invalid repository URL format')
+        return false
+      }
+      setUrlError('')
+      return true
+    } catch {
+      setUrlError('Invalid URL format')
+      return false
+    }
+  }
+
+  // Handle URL input change
+  const handleUrlChange = (value: string) => {
+    setUrl(value)
+    if (value) validateUrl(value)
+    else setUrlError('')
+  }
+
+  // Copy to clipboard
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedField(field)
+      setTimeout(() => setCopiedField(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
 
   async function validateRepo() {
+    if (!validateUrl(url)) return
+    
     setLoading(true)
     setResult(null)
+    setUrlError('')
+    
     try {
       const res = await fetch('/api/validate-repo', {
         method: 'POST',
@@ -83,14 +145,26 @@ export function RepoValidator() {
             
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="https://github.com/owner/repository"
-                  disabled={loading}
-                  className="flex-1 rounded-lg bg-black/60 border border-white/10 px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all disabled:opacity-50"
-                />
+                <div className="flex-1">
+                  <input
+                    value={url}
+                    onChange={(e) => handleUrlChange(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="https://github.com/owner/repository"
+                    disabled={loading}
+                    className={`w-full rounded-lg bg-black/60 border px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all disabled:opacity-50 ${
+                      urlError
+                        ? 'border-red-500/50 focus:ring-red-500 focus:border-red-500'
+                        : 'border-white/10 focus:ring-purple-500 focus:border-transparent'
+                    }`}
+                  />
+                  {urlError && (
+                    <div className="flex items-center gap-2 mt-2 text-red-400 text-sm animate-slide-up">
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                      <span>{urlError}</span>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={validateRepo}
                   disabled={!url || loading}
@@ -181,34 +255,203 @@ export function RepoValidator() {
           <div className="space-y-6 animate-slide-up">
             {/* Summary Card */}
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-purple-900/20 via-black to-green-900/10 p-4 sm:p-6 backdrop-blur-sm">
-              <div className="flex items-center gap-3 mb-4">
-                <Github className="w-5 h-5 text-green-400" />
-                <h3 className="text-base sm:text-lg font-semibold">Repository Information</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Github className="w-5 h-5 text-green-400" />
+                  <h3 className="text-base sm:text-lg font-semibold">Repository Information</h3>
+                </div>
+                <a
+                  href={`https://github.com/${result.owner}/${result.repo}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs sm:text-sm text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  <span className="hidden sm:inline">View on GitHub</span>
+                  <ExternalLink className="w-4 h-4" />
+                </a>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-black/40 border border-white/5">
+                <div className="group relative flex items-center gap-3 p-3 rounded-lg bg-black/40 border border-white/5 hover:border-purple-500/30 transition-all">
                   <div className="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0"></div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-gray-500">Owner</p>
                     <p className="font-mono text-sm text-white truncate">{result.owner || '-'}</p>
                   </div>
+                  <button
+                    onClick={() => copyToClipboard(result.owner || '', 'owner')}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-white/10 rounded"
+                    title="Copy owner"
+                  >
+                    {copiedField === 'owner' ? (
+                      <Check className="w-3.5 h-3.5 text-green-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-gray-400" />
+                    )}
+                  </button>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-black/40 border border-white/5">
+                <div className="group relative flex items-center gap-3 p-3 rounded-lg bg-black/40 border border-white/5 hover:border-green-500/30 transition-all">
                   <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-gray-500">Repository</p>
                     <p className="font-mono text-sm text-white truncate">{result.repo || '-'}</p>
                   </div>
+                  <button
+                    onClick={() => copyToClipboard(result.repo || '', 'repo')}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-white/10 rounded"
+                    title="Copy repository name"
+                  >
+                    {copiedField === 'repo' ? (
+                      <Check className="w-3.5 h-3.5 text-green-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-gray-400" />
+                    )}
+                  </button>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-black/40 border border-white/5">
+                <div className="group relative flex items-center gap-3 p-3 rounded-lg bg-black/40 border border-white/5 hover:border-blue-500/30 transition-all">
                   <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-gray-500">Branch</p>
                     <p className="font-mono text-sm text-white truncate">{result.branch || '-'}</p>
                   </div>
+                  <button
+                    onClick={() => copyToClipboard(result.branch || '', 'branch')}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-white/10 rounded"
+                    title="Copy branch name"
+                  >
+                    {copiedField === 'branch' ? (
+                      <Check className="w-3.5 h-3.5 text-green-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-gray-400" />
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
+
+            {/* Code Metrics Card */}
+            {result.codeMetrics && (
+              <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-blue-900/20 via-black to-purple-900/10 p-4 sm:p-6 backdrop-blur-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <Code className="w-5 h-5 text-blue-400" />
+                  <h3 className="text-base sm:text-lg font-semibold">Code Analysis</h3>
+                  <div className="ml-auto flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-2 h-2 rounded-full ${
+                          i < result.codeMetrics!.qualityScore ? 'bg-green-400' : 'bg-gray-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Project Type & Stats */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                      <p className="text-xs text-gray-400 mb-1">Project Type</p>
+                      <p className="font-semibold text-sm text-blue-300">{result.codeMetrics.projectType}</p>
+                    </div>
+                    <div className="flex-1 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                      <p className="text-xs text-gray-400 mb-1">Code Files</p>
+                      <p className="font-semibold text-sm text-green-300">{result.codeMetrics.fileCount} files</p>
+                    </div>
+                  </div>
+
+                  {/* Languages */}
+                  {result.codeMetrics.languages.length > 0 && (
+                    <div className="p-3 rounded-lg bg-black/40 border border-white/5">
+                      <p className="text-xs text-gray-400 mb-2">Languages Detected</p>
+                      <div className="flex flex-wrap gap-2">
+                        {result.codeMetrics.languages.slice(0, 6).map((lang, idx) => (
+                          <span
+                            key={lang}
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              idx === 0
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                : 'bg-gray-700/50 text-gray-300'
+                            }`}
+                          >
+                            {lang}
+                          </span>
+                        ))}
+                        {result.codeMetrics.languages.length > 6 && (
+                          <span className="px-2 py-1 rounded text-xs text-gray-400">
+                            +{result.codeMetrics.languages.length - 6} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quality Indicators */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div
+                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${
+                        result.codeMetrics.hasReadme
+                          ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
+                          : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
+                      }`}
+                      title="A good README helps others understand your project"
+                    >
+                      <p className="text-xs text-gray-400">README</p>
+                      <p className="text-lg">{result.codeMetrics.hasReadme ? '✓' : '✗'}</p>
+                    </div>
+                    <div
+                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${
+                        result.codeMetrics.hasTests
+                          ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
+                          : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
+                      }`}
+                      title="Tests ensure code quality and reliability"
+                    >
+                      <p className="text-xs text-gray-400">Tests</p>
+                      <p className="text-lg">{result.codeMetrics.hasTests ? '✓' : '✗'}</p>
+                    </div>
+                    <div
+                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${
+                        result.codeMetrics.hasCI
+                          ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
+                          : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
+                      }`}
+                      title="CI/CD automates testing and deployment"
+                    >
+                      <p className="text-xs text-gray-400">CI/CD</p>
+                      <p className="text-lg">{result.codeMetrics.hasCI ? '✓' : '✗'}</p>
+                    </div>
+                    <div
+                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${
+                        result.codeMetrics.hasLicense
+                          ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
+                          : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
+                      }`}
+                      title="A license clarifies how others can use your code"
+                    >
+                      <p className="text-xs text-gray-400">License</p>
+                      <p className="text-lg">{result.codeMetrics.hasLicense ? '✓' : '✗'}</p>
+                    </div>
+                  </div>
+
+                  {/* Config Files */}
+                  {result.codeMetrics.configFiles.length > 0 && (
+                    <div className="p-3 rounded-lg bg-black/40 border border-white/5">
+                      <p className="text-xs text-gray-400 mb-2">Configuration Files</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {result.codeMetrics.configFiles.map((file) => (
+                          <span
+                            key={file}
+                            className="px-2 py-0.5 rounded text-xs font-mono bg-gray-700/50 text-gray-300"
+                          >
+                            {file}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Validation Checks */}
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-green-900/20 via-black to-purple-900/10 p-4 sm:p-6 backdrop-blur-sm">
