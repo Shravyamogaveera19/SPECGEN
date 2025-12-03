@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
-import { CheckCircle2, XCircle, AlertCircle, Loader2, Github, GitBranch, Shield, Code, Copy, Check, ExternalLink, AlertTriangle, Info } from 'lucide-react'
-
+import { useState } from 'react'
+import { CheckCircle2, XCircle, AlertCircle, Loader2, Github, GitBranch, Shield, Code, Copy, Check, ExternalLink, AlertTriangle } from 'lucide-react'
 type ValidationResult = {
   ok: boolean
   exists?: boolean
@@ -80,31 +79,31 @@ export function RepoValidator() {
 
   async function validateRepo() {
     if (!validateUrl(url)) return
-    
+
     setLoading(true)
     setResult(null)
     setUrlError('')
-    
+
     try {
       const res = await fetch('/api/validate-repo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, branch: selectedBranch || undefined }),
       })
-      
+
       if (!res.ok) {
         const data = await res.json().catch(() => ({ ok: false, reason: `Server error: ${res.status}` }))
         setResult(data)
         return
       }
-      
+
       const data = await res.json()
       setResult(data)
     } catch (err) {
       console.error('Validation error:', err)
-      setResult({ 
-        ok: false, 
-        reason: 'Cannot connect to server. Make sure the backend is running on port 3000.' 
+      setResult({
+        ok: false,
+        reason: 'Cannot connect to server. Make sure the backend is running on port 3000.'
       })
     } finally {
       setLoading(false)
@@ -142,7 +141,7 @@ export function RepoValidator() {
               <Github className="w-6 h-6 text-purple-400" />
               <label className="text-sm font-medium text-gray-300">Repository URL</label>
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
@@ -152,11 +151,10 @@ export function RepoValidator() {
                     onKeyPress={handleKeyPress}
                     placeholder="https://github.com/owner/repository"
                     disabled={loading}
-                    className={`w-full rounded-lg bg-black/60 border px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all disabled:opacity-50 ${
-                      urlError
-                        ? 'border-red-500/50 focus:ring-red-500 focus:border-red-500'
-                        : 'border-white/10 focus:ring-purple-500 focus:border-transparent'
-                    }`}
+                    className={`w-full rounded-lg bg-black/60 border px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all disabled:opacity-50 ${urlError
+                      ? 'border-red-500/50 focus:ring-red-500 focus:border-red-500'
+                      : 'border-white/10 focus:ring-purple-500 focus:border-transparent'
+                      }`}
                   />
                   {urlError && (
                     <div className="flex items-center gap-2 mt-2 text-red-400 text-sm animate-slide-up">
@@ -183,7 +181,7 @@ export function RepoValidator() {
                   )}
                 </button>
               </div>
-              
+
               {/* Branch Selector - shown after successful validation */}
               {result && result.branches && result.branches.length > 0 && (
                 <div className="flex items-center gap-3 p-4 rounded-lg bg-purple-500/10 border border-purple-500/30 animate-slide-up">
@@ -216,9 +214,8 @@ export function RepoValidator() {
 
             {/* Status Message */}
             {result && !loading && (
-              <div className={`mt-4 flex items-center gap-2 text-sm animate-slide-up ${
-                result.ok ? 'text-green-400' : 'text-red-400'
-              }`}>
+              <div className={`mt-4 flex items-center gap-2 text-sm animate-slide-up ${result.ok ? 'text-green-400' : 'text-red-400'
+                }`}>
                 {result.ok ? (
                   <CheckCircle2 className="w-5 h-5" />
                 ) : (
@@ -338,9 +335,8 @@ export function RepoValidator() {
                     {[...Array(5)].map((_, i) => (
                       <div
                         key={i}
-                        className={`w-2 h-2 rounded-full ${
-                          i < result.codeMetrics!.qualityScore ? 'bg-green-400' : 'bg-gray-700'
-                        }`}
+                        className={`w-2 h-2 rounded-full ${i < result.codeMetrics!.qualityScore ? 'bg-green-400' : 'bg-gray-700'
+                          }`}
                       />
                     ))}
                   </div>
@@ -367,11 +363,10 @@ export function RepoValidator() {
                         {result.codeMetrics.languages.slice(0, 6).map((lang, idx) => (
                           <span
                             key={lang}
-                            className={`px-2 py-1 rounded text-xs font-medium ${
-                              idx === 0
-                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                : 'bg-gray-700/50 text-gray-300'
-                            }`}
+                            className={`px-2 py-1 rounded text-xs font-medium ${idx === 0
+                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                              : 'bg-gray-700/50 text-gray-300'
+                              }`}
                           >
                             {lang}
                           </span>
@@ -388,44 +383,40 @@ export function RepoValidator() {
                   {/* Quality Indicators */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div
-                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${
-                        result.codeMetrics.hasReadme
-                          ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
-                          : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
-                      }`}
+                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${result.codeMetrics.hasReadme
+                        ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
+                        : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
+                        }`}
                       title="A good README helps others understand your project"
                     >
                       <p className="text-xs text-gray-400">README</p>
                       <p className="text-lg">{result.codeMetrics.hasReadme ? '✓' : '✗'}</p>
                     </div>
                     <div
-                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${
-                        result.codeMetrics.hasTests
-                          ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
-                          : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
-                      }`}
+                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${result.codeMetrics.hasTests
+                        ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
+                        : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
+                        }`}
                       title="Tests ensure code quality and reliability"
                     >
                       <p className="text-xs text-gray-400">Tests</p>
                       <p className="text-lg">{result.codeMetrics.hasTests ? '✓' : '✗'}</p>
                     </div>
                     <div
-                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${
-                        result.codeMetrics.hasCI
-                          ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
-                          : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
-                      }`}
+                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${result.codeMetrics.hasCI
+                        ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
+                        : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
+                        }`}
                       title="CI/CD automates testing and deployment"
                     >
                       <p className="text-xs text-gray-400">CI/CD</p>
                       <p className="text-lg">{result.codeMetrics.hasCI ? '✓' : '✗'}</p>
                     </div>
                     <div
-                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${
-                        result.codeMetrics.hasLicense
-                          ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
-                          : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
-                      }`}
+                      className={`p-2 rounded-lg border text-center transition-all cursor-help ${result.codeMetrics.hasLicense
+                        ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
+                        : 'bg-gray-700/20 border-gray-700/30 hover:border-gray-700/50'
+                        }`}
                       title="A license clarifies how others can use your code"
                     >
                       <p className="text-xs text-gray-400">License</p>
@@ -461,11 +452,10 @@ export function RepoValidator() {
               </div>
               <div className="space-y-3">
                 {/* Exists Check */}
-                <div className={`flex items-start gap-3 p-3 sm:p-4 rounded-lg border transition-all ${
-                  result.exists 
-                    ? 'bg-green-500/10 border-green-500/30' 
-                    : 'bg-red-500/10 border-red-500/30'
-                }`}>
+                <div className={`flex items-start gap-3 p-3 sm:p-4 rounded-lg border transition-all ${result.exists
+                  ? 'bg-green-500/10 border-green-500/30'
+                  : 'bg-red-500/10 border-red-500/30'
+                  }`}>
                   {result.exists ? (
                     <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0 mt-0.5" />
                   ) : (
@@ -480,11 +470,10 @@ export function RepoValidator() {
                 </div>
 
                 {/* Accessible Check */}
-                <div className={`flex items-start gap-3 p-3 sm:p-4 rounded-lg border transition-all ${
-                  result.accessible 
-                    ? 'bg-green-500/10 border-green-500/30' 
-                    : 'bg-red-500/10 border-red-500/30'
-                }`}>
+                <div className={`flex items-start gap-3 p-3 sm:p-4 rounded-lg border transition-all ${result.accessible
+                  ? 'bg-green-500/10 border-green-500/30'
+                  : 'bg-red-500/10 border-red-500/30'
+                  }`}>
                   {result.accessible ? (
                     <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0 mt-0.5" />
                   ) : (
@@ -499,11 +488,10 @@ export function RepoValidator() {
                 </div>
 
                 {/* Has Code Check */}
-                <div className={`flex items-start gap-3 p-3 sm:p-4 rounded-lg border transition-all ${
-                  result.hasCode 
-                    ? 'bg-green-500/10 border-green-500/30' 
-                    : 'bg-yellow-500/10 border-yellow-500/30'
-                }`}>
+                <div className={`flex items-start gap-3 p-3 sm:p-4 rounded-lg border transition-all ${result.hasCode
+                  ? 'bg-green-500/10 border-green-500/30'
+                  : 'bg-yellow-500/10 border-yellow-500/30'
+                  }`}>
                   {result.hasCode ? (
                     <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0 mt-0.5" />
                   ) : (
