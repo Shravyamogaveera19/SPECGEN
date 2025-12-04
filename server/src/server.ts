@@ -3,6 +3,9 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import healthRouter from './routes/health';
 import connectDB from './db';
+import path from 'path';
+import fs from 'fs';
+import validateRepoRouter from './routes/validateRepo';
 
 dotenv.config();
 
@@ -11,10 +14,22 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/health', healthRouter);
+    app.use('/api/validate-repo', validateRepoRouter);
 
 app.get('/', (req, res) => {
     res.json({ status: 'ok', service: 'specgen-server' });
 });
+
+    // Serve frontend in production: main homepage at '/'
+    if (process.env.NODE_ENV === 'production') {
+        const clientDist = path.resolve(__dirname, '../../client/dist');
+        if (fs.existsSync(clientDist)) {
+            app.use(express.static(clientDist));
+            app.get('*', (_req, res) => {
+                res.sendFile(path.join(clientDist, 'index.html'));
+            });
+        }
+    }
 
 const PORT = process.env.PORT || 3000;
 
