@@ -24,6 +24,9 @@ export function Header() {
             <Link className="text-gray-300 hover:text-white transition-colors" to="/repo-validator">
               Repo Validator
             </Link>
+            <Link className="text-gray-300 hover:text-white transition-colors" to="/architecture">
+              Architecture
+            </Link>
             <a className="text-gray-300 hover:text-white transition-colors" href="#features">
               Features
             </a>
@@ -86,12 +89,20 @@ export function Header() {
                 <div className="w-1 h-8 bg-green-500 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200" />
                 <span className="text-lg font-medium">Repo Validator</span>
               </Link>
-              <a
-                href="#features"
+              <Link
+                to="/architecture"
                 onClick={() => setMobileMenuOpen(false)}
                 className="group flex items-center gap-4 px-5 py-4 rounded-xl text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-transparent transition-all duration-200 border border-transparent hover:border-blue-500/30"
               >
                 <div className="w-1 h-8 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200" />
+                <span className="text-lg font-medium">Architecture</span>
+              </Link>
+              <a
+                href="#features"
+                onClick={() => setMobileMenuOpen(false)}
+                className="group flex items-center gap-4 px-5 py-4 rounded-xl text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-transparent transition-all duration-200 border border-transparent hover:border-indigo-500/30"
+              >
+                <div className="w-1 h-8 bg-indigo-500 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200" />
                 <span className="text-lg font-medium">Features</span>
               </a>
             </nav>

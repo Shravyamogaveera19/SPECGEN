@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { CheckCircle2, XCircle, AlertCircle, Loader2, Github, GitBranch, Shield, Code, Copy, Check, ExternalLink, AlertTriangle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { CheckCircle2, XCircle, AlertCircle, Loader2, Github, GitBranch, Shield, Code, Copy, Check, ExternalLink, AlertTriangle, Layers } from 'lucide-react'
 type ValidationResult = {
   ok: boolean
   exists?: boolean
@@ -28,6 +29,7 @@ type ValidationResult = {
 }
 
 export function RepoValidator() {
+  const navigate = useNavigate()
   const [url, setUrl] = useState('')
   const [selectedBranch, setSelectedBranch] = useState('')
   const [loading, setLoading] = useState(false)
@@ -522,11 +524,28 @@ export function RepoValidator() {
                   <div className="flex-1">
                     <h3 className="text-base sm:text-lg font-semibold mb-2 text-green-400">Ready for Analysis!</h3>
                     <p className="text-gray-300 text-sm mb-4">
-                      This repository has passed all validation checks and is ready for SDLC documentation generation.
+                      This repository has passed all validation checks and is ready for architecture diagram generation.
                     </p>
-                    <button className="w-full sm:w-auto rounded-lg px-6 py-2.5 font-medium bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 transition-all transform hover:scale-105 shadow-lg shadow-green-500/25 text-sm">
-                      Generate Documentation
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button 
+                        onClick={() => navigate('/generate-diagrams', { 
+                          state: { 
+                            owner: result.owner, 
+                            repo: result.repo, 
+                            branch: result.branch,
+                            url: url,
+                            codeMetrics: result.codeMetrics
+                          } 
+                        })}
+                        className="flex items-center justify-center gap-2 w-full sm:w-auto rounded-lg px-6 py-2.5 font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 transition-all transform hover:scale-105 shadow-lg shadow-purple-500/25 text-sm"
+                      >
+                        <Layers className="w-4 h-4" />
+                        Generate Diagrams
+                      </button>
+                      <button className="w-full sm:w-auto rounded-lg px-6 py-2.5 font-medium bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 transition-all transform hover:scale-105 shadow-lg shadow-green-500/25 text-sm">
+                        Generate Documentation
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -3,6 +3,8 @@ import { Footer } from './components/Footer'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Home } from './pages/Home'
 import { ValidateRepo } from './pages/ValidateRepo'
+import { Architecture } from './pages/Architecture'
+import { GenerateDiagrams } from './pages/GenerateDiagrams'
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/repo-validator" element={<ValidateRepo />} />
+            <Route path="/architecture" element={<Architecture />} />
+            <Route path="/generate-diagrams" element={<GenerateDiagrams />} />
           </Routes>
         </main>
         <Footer />

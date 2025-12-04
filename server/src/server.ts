@@ -6,6 +6,7 @@ import connectDB from './db';
 import path from 'path';
 import fs from 'fs';
 import validateRepoRouter from './routes/validateRepo';
+import generateDiagramRouter from './routes/generateDiagram';
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 app.use('/health', healthRouter);
     app.use('/api/validate-repo', validateRepoRouter);
+    app.use('/api/generate-diagram', generateDiagramRouter);
 
 app.get('/', (req, res) => {
     res.json({ status: 'ok', service: 'specgen-server' });
