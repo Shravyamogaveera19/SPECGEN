@@ -80,6 +80,7 @@ router.post('/', async (req, res) => {
         fileCount: codeAnalysis.codeFileCount,
         languages: codeAnalysis.languages,
         primaryLanguage: codeAnalysis.primaryLanguage,
+        languagePercentages: codeAnalysis.languagePercentages,
         hasTests: codeAnalysis.hasTests,
         hasReadme: codeAnalysis.hasReadme,
         hasLicense: codeAnalysis.hasLicense,
@@ -152,6 +153,19 @@ const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
   'Haskell': ['hs'],
   'Lua': ['lua'],
   'Objective-C': ['m', 'mm'],
+  'COBOL': ['cbl', 'cob', 'cpy'],
+  'Fortran': ['f', 'f90', 'f95', 'for'],
+  'Pascal': ['pas', 'pp'],
+  'Assembly': ['asm', 's'],
+  'MATLAB': ['m'],
+  'Julia': ['jl'],
+  'Groovy': ['groovy', 'gvy'],
+  'Clojure': ['clj', 'cljs', 'cljc'],
+  'Erlang': ['erl'],
+  'F#': ['fs', 'fsx'],
+  'OCaml': ['ml', 'mli'],
+  'Racket': ['rkt'],
+  'Scheme': ['scm', 'ss'],
 };
 
 const CONFIG_FILES = new Set([
@@ -182,6 +196,7 @@ interface CodeAnalysis {
   codeFileCount: number;
   languages: string[];
   primaryLanguage: string;
+  languagePercentages?: Record<string, number>;
   hasTests: boolean;
   hasReadme: boolean;
   hasLicense: boolean;
@@ -299,6 +314,15 @@ async function analyzeRepository(owner: string, repo: string, branch: string): P
     result.configFiles = discoveredConfigs;
     result.hasCode = result.codeFileCount > 0;
 
+    // Calculate language percentages
+    if (result.codeFileCount > 0) {
+      const percentages: Record<string, number> = {};
+      for (const [lang, count] of Object.entries(languageCounts)) {
+        percentages[lang] = Math.round((count / result.codeFileCount) * 100 * 10) / 10; // Round to 1 decimal
+      }
+      result.languagePercentages = percentages;
+    }
+
     // Determine project type
     result.projectType = determineProjectType(languageCounts, discoveredConfigs);
 
@@ -376,6 +400,11 @@ function determineProjectType(languageCounts: Record<string, number>, configFile
   // Mobile
   if (languageCounts['Swift'] > 0) return 'iOS Application';
   if (languageCounts['Kotlin'] > 0 && languageCounts['Java'] > 0) return 'Android Application';
+
+  // Legacy/Enterprise languages
+  if (languageCounts['COBOL'] > 0) return 'COBOL Project';
+  if (languageCounts['Fortran'] > 0) return 'Fortran Project';
+  if (languageCounts['Pascal'] > 0) return 'Pascal Project';
 
   // Determine by primary language
   const primaryLang = Object.entries(languageCounts).sort(([, a], [, b]) => b - a)[0]?.[0];

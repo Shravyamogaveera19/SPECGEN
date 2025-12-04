@@ -14,6 +14,7 @@ type ValidationResult = {
     fileCount: number
     languages: string[]
     primaryLanguage: string
+    languagePercentages?: Record<string, number>
     hasTests: boolean
     hasReadme: boolean
     hasLicense: boolean
@@ -367,8 +368,14 @@ export function RepoValidator() {
                               ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                               : 'bg-gray-700/50 text-gray-300'
                               }`}
+                            title={result.codeMetrics.languagePercentages?.[lang] ? `${result.codeMetrics.languagePercentages[lang]}%` : undefined}
                           >
                             {lang}
+                            {result.codeMetrics.languagePercentages?.[lang] && (
+                              <span className="ml-1 text-[10px] opacity-70">
+                                {result.codeMetrics.languagePercentages[lang]}%
+                              </span>
+                            )}
                           </span>
                         ))}
                         {result.codeMetrics.languages.length > 6 && (
