@@ -94,7 +94,7 @@ router.post("/", async (req, res) => {
     // Cleanup temp directory
     fs.rmSync(tempDir, { recursive: true, force: true });
 
-    res.json({ ok: true, docs });
+    res.json({ ok: true, docs: { ...docs, analysis, repoName, repoUrl: url } });
   } catch (err: any) {
     // Cleanup on error
     if (fs.existsSync(tempDir)) {
@@ -152,23 +152,79 @@ ${analysis.readme ? `\nREADME Preview:\n${analysis.readme}` : ""}
 }
 
 async function generateRequirementsWithGroq(context: string): Promise<string> {
-  const prompt = `Based on this repository analysis, generate a comprehensive Functional Requirements document:
+  const prompt = `Based on this repository analysis, generate a comprehensive Software Requirements Specification (SRS) document in formal SRS format:
 
 ${context}
 
-Please generate a detailed Functional Requirements document that includes:
-1. Project Overview (2-3 paragraphs)
-2. Functional Requirements (5-7 bullet points describing what the system does)
-3. System Dependencies
-4. Technology Stack Summary
+Please generate a professional SRS document with the following structure (use this exact format):
 
-Format as markdown with clear sections. Keep response concise but complete.`;
+## 1. INTRODUCTION
+### 1.1 Purpose
+Write a brief description of the system's purpose and objectives.
+
+### 1.2 Scope
+Define what the system does and doesn't do.
+
+### 1.3 Overview
+Provide a high-level overview of the system functionality.
+
+## 2. GENERAL DESCRIPTION
+### 2.1 Product Perspective
+Describe how this system relates to other systems if any.
+
+### 2.2 Product Features
+List major product features:
+- Feature 1: Brief description
+- Feature 2: Brief description
+- (Continue as needed)
+
+### 2.3 User Classes and Characteristics
+Identify different user types and their characteristics.
+
+### 2.4 Operating Environment
+Describe the hardware and software environment.
+
+## 3. SPECIFIC FUNCTIONAL REQUIREMENTS
+
+### 3.1 [Feature/Module 1 Name]
+**Requirement ID:** REQ-001
+**Description:** Detailed description of this requirement
+**Input:** What inputs are required
+**Processing:** How the system processes the input
+**Output:** Expected output
+**Priority:** High/Medium/Low
+
+### 3.2 [Feature/Module 2 Name]
+**Requirement ID:** REQ-002
+**Description:** Detailed description
+**Input:** Expected inputs
+**Processing:** Processing logic
+**Output:** Expected output
+**Priority:** High/Medium/Low
+
+(Continue for all major features/requirements)
+
+## 4. SYSTEM ARCHITECTURE
+### 4.1 Technology Stack
+- Backend: [List technologies]
+- Frontend: [List technologies]
+- Database: [List technologies]
+- Other Tools: [List]
+
+### 4.2 Data Flow
+Brief description of how data flows through the system.
+
+## 5. APPENDICES
+### 5.1 Glossary
+Define any technical terms used in the document.
+
+Be specific, detailed, and use formal SRS language. Focus ONLY on functional requirements. Reference actual code patterns and features found in the repository.`;
 
   try {
     const result = await callGroq(prompt);
-    return result.substring(0, 3000);
+    return result.substring(0, 5000);
   } catch (err: any) {
-    return `# Functional Requirements\n\nError: ${err.message}`;
+    return `# Software Requirements Specification\n\nError: ${err.message}`;
   }
 }
 
