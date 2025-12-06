@@ -26,6 +26,8 @@ export function GenerateDiagrams() {
   const [generatedDiagram, setGeneratedDiagram] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [codeDetails, setCodeDetails] = useState<any>(null);
+  const [selectedDetail, setSelectedDetail] = useState<string>('endpoints');
 
   const repoData = location.state as {
     owner?: string;
@@ -82,26 +84,39 @@ export function GenerateDiagrams() {
     setLoading(true);
     setError(null);
     setGeneratedDiagram(null);
+    setCodeDetails(null);
 
     try {
+      console.log('Generating diagram for:', { owner: repoData.owner, repo: repoData.repo, branch: repoData.branch, diagramType: diagramId });
+      
       const response = await fetch('/api/generate-diagram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           owner: repoData.owner,
           repo: repoData.repo,
-          branch: repoData.branch,
+          branch: repoData.branch || 'main',
           diagramType: diagramId,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate diagram');
+        const errorData = await response.json().catch(() => ({ reason: 'Unknown error' }));
+        throw new Error(errorData.reason || `Failed to generate diagram (${response.status})`);
       }
 
       const data = await response.json();
+      console.log('Diagram generated successfully:', data);
+      
+      if (!data.diagram) {
+        throw new Error('No diagram in response');
+      }
+      
       setGeneratedDiagram(data.diagram);
+      setCodeDetails(data.codeDetails || null);
+      setSelectedDetail('endpoints');
     } catch (err) {
+      console.error('Error generating diagram:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate diagram');
     } finally {
       setLoading(false);
@@ -301,6 +316,182 @@ export function GenerateDiagrams() {
                 ← Back to diagram selection
               </button>
             </div>
+
+            {/* Dynamic Code Details Panel */}
+            {codeDetails && (
+              <div className="mt-8 pt-8 border-t border-purple-500/30">
+                <h3 className="text-xl font-bold mb-6 text-purple-400">
+                  📊 Actual Code Details from Repository
+                </h3>
+
+                {/* Tab Selection */}
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <button
+                    onClick={() => setSelectedDetail('endpoints')}
+                    className={`px-4 py-2 rounded-lg transition-all ${
+                      selectedDetail === 'endpoints'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    API Endpoints ({codeDetails.endpoints?.length || 0})
+                  </button>
+                  <button
+                    onClick={() => setSelectedDetail('components')}
+                    className={`px-4 py-2 rounded-lg transition-all ${
+                      selectedDetail === 'components'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    Components ({codeDetails.components?.length || 0})
+                  </button>
+                  <button
+                    onClick={() => setSelectedDetail('services')}
+                    className={`px-4 py-2 rounded-lg transition-all ${
+                      selectedDetail === 'services'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    Services ({codeDetails.services?.length || 0})
+                  </button>
+                  <button
+                    onClick={() => setSelectedDetail('models')}
+                    className={`px-4 py-2 rounded-lg transition-all ${
+                      selectedDetail === 'models'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    Models ({codeDetails.models?.length || 0})
+                  </button>
+                </div>
+
+                {/* Endpoints List */}
+                {selectedDetail === 'endpoints' && codeDetails.endpoints && (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {codeDetails.endpoints.map((endpoint: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="bg-gray-800/50 border border-green-500/30 rounded-lg p-4"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className={`px-3 py-1 rounded text-sm font-bold text-white ${
+                            endpoint.method === 'GET'
+                              ? 'bg-blue-600'
+                              : endpoint.method === 'POST'
+                              ? 'bg-green-600'
+                              : endpoint.method === 'PUT'
+                              ? 'bg-yellow-600'
+                              : endpoint.method === 'DELETE'
+                              ? 'bg-red-600'
+                              : 'bg-gray-600'
+                          }`}>
+                            {endpoint.method}
+                          </span>
+                          <code className="text-green-400 font-mono text-sm flex-1">
+                            {endpoint.path}
+                          </code>
+                        </div>
+                        <p className="text-gray-400 text-xs">📄 {endpoint.file}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Components List */}
+                {selectedDetail === 'components' && codeDetails.components && (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {codeDetails.components.map((component: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="bg-gray-800/50 border border-blue-500/30 rounded-lg p-4"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <h4 className="font-semibold text-blue-400">{component.name}</h4>
+                            <p className="text-gray-400 text-sm">
+                              {component.type === 'Page' ? '📄 Page' : '🧩 Component'} • {component.lineCount} lines
+                            </p>
+                          </div>
+                        </div>
+                        {component.functions && component.functions.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-gray-500 text-xs mb-1">Functions:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {component.functions.map((fn: string, i: number) => (
+                                <span key={i} className="bg-blue-900/40 text-blue-300 px-2 py-1 rounded text-xs font-mono">
+                                  {fn}()
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Services List */}
+                {selectedDetail === 'services' && codeDetails.services && (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {codeDetails.services.map((service: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="bg-gray-800/50 border border-orange-500/30 rounded-lg p-4"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-orange-400">{service.name}</h4>
+                          <span className="text-gray-400 text-xs">{service.lineCount} lines</span>
+                        </div>
+                        {service.methods && service.methods.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-gray-500 text-xs mb-1">Methods:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {service.methods.map((method: string, i: number) => (
+                                <span key={i} className="bg-orange-900/40 text-orange-300 px-2 py-1 rounded text-xs font-mono">
+                                  {method}()
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Models List */}
+                {selectedDetail === 'models' && codeDetails.models && (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {codeDetails.models.map((model: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="bg-gray-800/50 border border-pink-500/30 rounded-lg p-4"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-pink-400">{model.name}</h4>
+                          <span className="text-gray-400 text-xs">{model.lineCount} lines</span>
+                        </div>
+                        {model.fields && model.fields.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-gray-500 text-xs mb-1">Fields:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {model.fields.map((field: string, i: number) => (
+                                <span key={i} className="bg-pink-900/40 text-pink-300 px-2 py-1 rounded text-xs font-mono">
+                                  {field}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
