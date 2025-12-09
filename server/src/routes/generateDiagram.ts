@@ -156,6 +156,7 @@ async function deepAnalyzeRepository(repoPath: string, repoName: string) {
     projectType: 'Unknown',
     architecture: 'Unknown',
     totalFiles: 0,
+    isUtility: false,
     frontend: {
       framework: null,
       components: [],
@@ -416,6 +417,16 @@ async function deepAnalyzeRepository(repoPath: string, repoName: string) {
   } else if (analysis.backend.framework) {
     analysis.projectType = 'Backend/API Application';
     analysis.architecture = 'RESTful API / Microservice';
+  } else if (
+    analysis.routes.length === 0 &&
+    analysis.services.length === 0 &&
+    analysis.models.length === 0 &&
+    analysis.apiEndpoints.length === 0 &&
+    !analysis.database.type
+  ) {
+    analysis.projectType = 'Utility/CLI Application';
+    analysis.architecture = 'Single-process';
+    analysis.isUtility = true;
   }
 
   analysis.languages = Array.from(analysis.languages);
@@ -647,6 +658,18 @@ function generateAdvancedHLD(analysis: any): string {
   diagram += `    %% ${analysis.repoName} - High-Level Design\n`;
   diagram += `    %% Project Type: ${analysis.projectType}\n\n`;
 
+  // Utility/CLI minimal diagram
+  if (analysis.isUtility) {
+    diagram += `    User["👤 User"]\n`;
+    diagram += `    CLI["🖥️ CLI Application\n${analysis.repoName}"]\n`;
+    diagram += `    Compute["📐 Computation Logic\n(sqrt/Math)"]\n`;
+    diagram += `    User -->|Input number| CLI\n`;
+    diagram += `    CLI -->|Validate & Parse| Compute\n`;
+    diagram += `    Compute -->|Result| CLI\n`;
+    diagram += `    CLI -->|Print output| User\n`;
+    return diagram;
+  }
+
   // User/Client Layer
   diagram += `    User["👤 User/Client"]\n`;
   diagram += `    LoadBalancer["⚖️ Load Balancer<br/>(Nginx/HAProxy)"]\n\n`;
@@ -785,6 +808,21 @@ function generateAdvancedLLD(analysis: any): string {
   let diagram = `graph TD\n`;
   diagram += `    %% ${analysis.repoName} - Low-Level Design (Detailed)\n`;
   diagram += `    %% Shows request flow through all layers\n\n`;
+
+  // Utility/CLI LLD
+  if (analysis.isUtility) {
+    diagram += `    User["👤 User"]\n`;
+    diagram += `    Main["main() entrypoint"]\n`;
+    diagram += `    Input["Parse & validate input"]\n`;
+    diagram += `    Compute["Compute sqrt (Math.sqrt)"]\n`;
+    diagram += `    Output["Print result to console"]\n`;
+    diagram += `    User --> Main\n`;
+    diagram += `    Main --> Input\n`;
+    diagram += `    Input --> Compute\n`;
+    diagram += `    Compute --> Output\n`;
+    diagram += `    Output --> User\n`;
+    return diagram;
+  }
 
   // Client/Browser
   diagram += `    Client["🌐 Client Browser<br/>User Interface"]\n\n`;
@@ -995,6 +1033,10 @@ function generateAdvancedDatabaseSchema(analysis: any): string {
   diagram += `    %% ${analysis.repoName} - Database Schema\n`;
   diagram += `    %% ${analysis.database.type || 'Database'} Model Relationships\n\n`;
 
+  if (analysis.isUtility || (!analysis.database.type && analysis.database.models.length === 0)) {
+    return `graph LR\n    NoDB["No database detected"]\n    style NoDB fill:#ef4444,color:#fff`;
+  }
+
   if (analysis.database.models.length === 0) {
     // Create generic schema based on detected patterns
     diagram += `    USER {\n`;
@@ -1174,6 +1216,21 @@ function generateAdvancedSequenceDiagram(analysis: any): string {
   let diagram = `sequenceDiagram\n`;
   diagram += `    %% ${analysis.repoName} - API Request Flow\n`;
   diagram += `    %% Detailed sequence showing complete lifecycle\n\n`;
+
+  // Utility/CLI sequence
+  if (analysis.isUtility) {
+    diagram += `    actor User as User\n`;
+    diagram += `    participant CLI as CLI Application\n`;
+    diagram += `    participant Logic as Computation\n\n`;
+    diagram += `    autonumber\n`;
+    diagram += `    User->>CLI: Start program\n`;
+    diagram += `    CLI->>User: Prompt for number\n`;
+    diagram += `    User->>CLI: Enter value\n`;
+    diagram += `    CLI->>Logic: Validate & compute sqrt\n`;
+    diagram += `    Logic-->>CLI: Result\n`;
+    diagram += `    CLI-->>User: Print result\n`;
+    return diagram;
+  }
 
   // Participants
   diagram += `    actor User as 👤 User/Client\n`;

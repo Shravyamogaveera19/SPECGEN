@@ -130,6 +130,11 @@ URL: ${repoUrl}
 - Has CI/CD: ${analysis.hasCI ? "Yes" : "No"}
 - Has Docker: ${analysis.hasDocker ? "Yes" : "No"}
 - Dependencies: ${analysis.dependencies.slice(0, 20).join(", ")}
+   - Repo classification: ${
+     analysis.frameworks.length === 0 && analysis.databases.length === 0
+       ? "Likely a standalone utility/CLI (no web framework or DB detected)"
+       : "Framework-backed application"
+   }
 ${analysis.readme ? `\nREADME Preview:\n${analysis.readme}` : ""}
 `;
 
