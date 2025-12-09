@@ -148,6 +148,12 @@ ${
 ${analysis.mainFeatures ? `Project Purpose:\n${analysis.mainFeatures}\n` : ""}
 
 ${analysis.readme ? `\nProject Description (README):\n${analysis.readme}` : ""}
+   - Repo classification: ${
+     analysis.frameworks.length === 0 && analysis.databases.length === 0
+       ? "Likely a standalone utility/CLI (no web framework or DB detected)"
+       : "Framework-backed application"
+   }
+${analysis.readme ? `\nREADME Preview:\n${analysis.readme}` : ""}
 `;
 
   console.log("Generating 4 documentation sections in parallel...");
