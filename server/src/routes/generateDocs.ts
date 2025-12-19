@@ -19,6 +19,9 @@ interface RepoAnalysis {
   hasDocker: boolean;
   readme?: string;
   packageFiles: string[];
+  codeSnippets?: string; // Key code patterns and functions
+  mainFeatures?: string; // Detected main features from code
+  codeStructure?: string; // Key files and their purposes
 }
 
 // Initialize Groq client
@@ -130,6 +133,21 @@ URL: ${repoUrl}
 - Has CI/CD: ${analysis.hasCI ? "Yes" : "No"}
 - Has Docker: ${analysis.hasDocker ? "Yes" : "No"}
 - Dependencies: ${analysis.dependencies.slice(0, 20).join(", ")}
+
+**Code Analysis:**
+${
+  analysis.codeStructure
+    ? `Key Files & Structure:\n${analysis.codeStructure}\n`
+    : ""
+}
+${
+  analysis.codeSnippets
+    ? `Main Functions/Classes:\n${analysis.codeSnippets}\n`
+    : ""
+}
+${analysis.mainFeatures ? `Project Purpose:\n${analysis.mainFeatures}\n` : ""}
+
+${analysis.readme ? `\nProject Description (README):\n${analysis.readme}` : ""}
    - Repo classification: ${
      analysis.frameworks.length === 0 && analysis.databases.length === 0
        ? "Likely a standalone utility/CLI (no web framework or DB detected)"
@@ -318,9 +336,19 @@ async function analyzeRepository(repoPath: string): Promise<RepoAnalysis> {
     hasCI: false,
     hasDocker: false,
     packageFiles: [],
+    codeSnippets: "",
+    mainFeatures: "",
+    codeStructure: "",
   };
 
-  function scanDirectory(dir: string, relativePath = "") {
+  const codePatterns: string[] = [];
+  const keyFiles: string[] = [];
+  const mainFunctionality: string[] = [];
+
+  function scanDirectory(dir: string, relativePath = "", depth = 0) {
+    // Limit depth to avoid huge files
+    if (depth > 5) return;
+
     const items = fs.readdirSync(dir);
     for (const item of items) {
       if (
@@ -330,7 +358,8 @@ async function analyzeRepository(repoPath: string): Promise<RepoAnalysis> {
         item === "__pycache__" ||
         item === ".next" ||
         item === "build" ||
-        item === "dist"
+        item === "dist" ||
+        item.startsWith(".")
       )
         continue;
 
@@ -345,15 +374,18 @@ async function analyzeRepository(repoPath: string): Promise<RepoAnalysis> {
         if (item === ".github" || item === ".gitlab-ci.yml") {
           analysis.hasCI = true;
         }
-        scanDirectory(fullPath, relPath);
+        scanDirectory(fullPath, relPath, depth + 1);
       } else {
         const ext = path.extname(item);
         const fileName = item.toLowerCase();
+        const fileSize = stat.size;
 
+        // Track file extension
         if (ext) {
           analysis.languages[ext] = (analysis.languages[ext] || 0) + 1;
         }
 
+        // Detect infrastructure files
         if (fileName === "dockerfile" || fileName.startsWith("dockerfile.")) {
           analysis.hasDocker = true;
         }
@@ -367,6 +399,7 @@ async function analyzeRepository(repoPath: string): Promise<RepoAnalysis> {
           analysis.hasCI = true;
         }
 
+        // Parse package files for dependencies
         if (fileName === "package.json") {
           analysis.packageFiles.push(relPath);
           try {
@@ -391,6 +424,8 @@ async function analyzeRepository(repoPath: string): Promise<RepoAnalysis> {
               if (content.dependencies.sqlite3)
                 analysis.databases.push("SQLite");
             }
+            if (content.description)
+              mainFunctionality.push(content.description);
           } catch (e) {
             // Skip invalid JSON
           }
@@ -415,6 +450,7 @@ async function analyzeRepository(repoPath: string): Promise<RepoAnalysis> {
           }
         }
 
+        // Read README for project description
         if (
           fileName === "readme.md" ||
           fileName === "readme.txt" ||
@@ -429,6 +465,44 @@ async function analyzeRepository(repoPath: string): Promise<RepoAnalysis> {
           }
         }
 
+        // Extract code from main source files (skip if too large)
+        const codeExtensions = [
+          ".js",
+          ".ts",
+          ".tsx",
+          ".jsx",
+          ".py",
+          ".java",
+          ".go",
+          ".rb",
+          ".php",
+        ];
+        if (
+          codeExtensions.includes(ext) &&
+          fileSize < 50000 &&
+          keyFiles.length < 15
+        ) {
+          try {
+            const content = fs.readFileSync(fullPath, "utf-8");
+            const lines = content.split("\n").slice(0, 50).join("\n"); // First 50 lines
+
+            // Extract function/class definitions
+            const functionPattern =
+              /(export\s+)?(async\s+)?(function|const|class|def|func)\s+(\w+)/g;
+            const matches = content.match(functionPattern);
+            if (matches && matches.length > 0) {
+              codePatterns.push(
+                `${relPath}: ${matches.slice(0, 5).join(", ")}`
+              );
+            }
+
+            keyFiles.push(`${relPath}: ${lines.substring(0, 200)}...`);
+          } catch (e) {
+            // Skip unreadable files
+          }
+        }
+
+        // Track directory structure
         const dirName = path.dirname(relPath) || "root";
         if (!analysis.structure[dirName]) {
           analysis.structure[dirName] = [];
@@ -439,9 +513,16 @@ async function analyzeRepository(repoPath: string): Promise<RepoAnalysis> {
   }
 
   scanDirectory(repoPath);
+
+  // Build analysis summary
   analysis.frameworks = [...new Set(analysis.frameworks)];
   analysis.databases = [...new Set(analysis.databases)];
   analysis.dependencies = [...new Set(analysis.dependencies)].slice(0, 50);
+
+  // Compile code insights
+  analysis.codeSnippets = codePatterns.slice(0, 10).join("\n");
+  analysis.mainFeatures = mainFunctionality.join("\n");
+  analysis.codeStructure = keyFiles.slice(0, 8).join("\n---\n");
 
   return analysis;
 }
