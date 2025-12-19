@@ -127,9 +127,13 @@ router.post("/", async (req, res) => {
       reason,
     });
   } catch (err: any) {
+    console.error("Error validating repository:", err.message || err);
     return res
       .status(500)
-      .json({ ok: false, reason: "Internal error validating repository" });
+      .json({ 
+        ok: false, 
+        reason: `Internal error validating repository: ${err.message || 'Unknown error'}` 
+      });
   }
 });
 
@@ -303,24 +307,33 @@ async function searchRepositoryFiles(
 
   try {
     for (const pattern of filePatterns) {
-      const searchResp = await ghGet(
-        `https://api.github.com/search/code?q=repo:${owner}/${repo}+${pattern}&per_page=5`
-      );
-      if (searchResp.status === 200) {
-        const searchData = (await searchResp.json()) as any;
-        if (searchData.items && Array.isArray(searchData.items)) {
-          files.push(
-            ...searchData.items.map((item: any) => ({
-              path: item.path,
-              type: "blob",
-              size: item.size,
-            }))
-          );
+      try {
+        const searchResp = await ghGet(
+          `https://api.github.com/search/code?q=repo:${owner}/${repo}+${pattern}&per_page=5`
+        );
+        if (searchResp.status === 200) {
+          const searchData = (await searchResp.json()) as any;
+          if (searchData.items && Array.isArray(searchData.items)) {
+            files.push(
+              ...searchData.items.map((item: any) => ({
+                path: item.path,
+                type: "blob",
+                size: item.size,
+              }))
+            );
+          }
+        } else if (searchResp.status === 403 || searchResp.status === 429) {
+          // Rate limit - stop searching
+          console.warn(`Search API rate limit (${searchResp.status}), stopping search`);
+          break;
         }
+      } catch (patternErr) {
+        console.warn(`Error searching pattern ${pattern}:`, (patternErr as any).message);
+        continue;
       }
     }
   } catch (err) {
-    // Silently fail and return empty array
+    console.warn("Error in searchRepositoryFiles:", (err as any).message);
   }
 
   return files;
@@ -484,8 +497,9 @@ async function analyzeRepository(
 
     return result;
   } catch (err) {
+    console.error("Error in analyzeRepository:", (err as any).message);
     result.accessible = false;
-    result.reason = "Error analyzing repository";
+    result.reason = `Error analyzing repository: ${(err as any).message}`;
     return result;
   }
 }

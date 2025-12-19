@@ -186,6 +186,7 @@ async function deepAnalyzeRepository(repoPath: string, repoName: string) {
     utilities: [],
     config: [],
     tests: [],
+    cobolProcedures: [],
     docker: false,
     ci: false,
     languages: new Set<string>(),
@@ -218,6 +219,26 @@ async function deepAnalyzeRepository(repoPath: string, repoName: string) {
 
         // Track languages
         if (ext) analysis.languages.add(ext.slice(1));
+
+        // Detect COBOL files
+        if (ext === '.cob' || ext === '.cobol' || ext === '.cbl') {
+          analysis.projectType = 'COBOL Application';
+          analysis.architecture = 'Procedural';
+          analysis.isUtility = true; // COBOL programs are typically standalone
+          
+          // Extract procedures from COBOL
+          try {
+            const content = fs.readFileSync(fullPath, 'utf-8');
+            const procedures = extractCobolProcedures(content);
+            if (!analysis.cobolProcedures) analysis.cobolProcedures = [];
+            analysis.cobolProcedures.push({
+              file: relativePath,
+              fileName: entry.name,
+              procedures: procedures,
+              lineCount: content.split('\n').length,
+            });
+          } catch (e) {}
+        }
 
         // Detect project type and frameworks
         if (fileName === 'package.json') {
@@ -601,6 +622,48 @@ function extractModelFields(content: string): string[] {
   }
 
   return fields;
+}
+
+// Extract COBOL procedures and paragraphs
+function extractCobolProcedures(content: string): string[] {
+  const procedures: string[] = [];
+  
+  // Remove comments and normalize whitespace
+  const lines = content.split('\n');
+  
+  for (const line of lines) {
+    // Skip comment lines (COBOL uses * or / in column 7)
+    if (line.length > 6 && (line[6] === '*' || line[6] === '/')) {
+      continue;
+    }
+    
+    // Extract procedure names (paragraphs)
+    // In COBOL: PARAGRAPH-NAME. at the start of a line (area A)
+    // Typically in columns 8-11 (area A)
+    const trimmed = line.substring(7).trim(); // Skip columns 1-7
+    
+    // Match paragraph names ending with period
+    const paragraphPattern = /^([A-Z][A-Z0-9\-]*)\s*\.$/;
+    const match = trimmed.match(paragraphPattern);
+    if (match && match[1]) {
+      const procName = match[1];
+      if (!procedures.includes(procName)) {
+        procedures.push(procName);
+      }
+    }
+    
+    // Also match PERFORM statements to find called procedures
+    const performPattern = /PERFORM\s+([A-Z][A-Z0-9\-]*)/i;
+    const performMatch = trimmed.match(performPattern);
+    if (performMatch && performMatch[1]) {
+      const procName = performMatch[1].toUpperCase();
+      if (!procedures.includes(procName)) {
+        procedures.push(procName);
+      }
+    }
+  }
+  
+  return procedures;
 }
 
 // Extract API endpoints from file content
@@ -1211,22 +1274,80 @@ function generateAdvancedDatabaseSchema(analysis: any): string {
 }
 
 // Generate Sequence Diagram
-// Generate Advanced Sequence Diagram - Detailed Request Flow
+// Generate Advanced Sequence Diagram - Detailed Request Flow (Dynamic based on actual code)
 function generateAdvancedSequenceDiagram(analysis: any): string {
   let diagram = `sequenceDiagram\n`;
-  diagram += `    %% ${analysis.repoName} - API Request Flow\n`;
-  diagram += `    %% Detailed sequence showing complete lifecycle\n\n`;
+  diagram += `    %% ${analysis.repoName} - Dynamic Sequence Flow\n`;
+  diagram += `    %% Actual flow based on extracted code procedures/functions\n\n`;
 
-  // Utility/CLI sequence
+  // COBOL sequence - use actual procedures from code
+  if (analysis.cobolProcedures && analysis.cobolProcedures.length > 0) {
+    diagram += `    actor User as 👤 User\n`;
+    diagram += `    participant CLI as 🖥️ COBOL Program<br/>${analysis.repoName}\n`;
+    
+    const mainProc = analysis.cobolProcedures[0];
+    const procedures = mainProc.procedures || [];
+    
+    // Determine what the program does based on procedure names
+    let programPurpose = 'Computation';
+    let inputType = 'values';
+    if (procedures.some((p: string) => p.toUpperCase().includes('GCD'))) {
+      programPurpose = 'Calculate GCD';
+      inputType = 'two numbers';
+    } else if (procedures.some((p: string) => p.toUpperCase().includes('SQRT'))) {
+      programPurpose = 'Calculate square root';
+      inputType = 'a number';
+    } else if (procedures.some((p: string) => p.toUpperCase().includes('SORT'))) {
+      programPurpose = 'Sort data';
+      inputType = 'a list';
+    } else if (procedures.some((p: string) => p.toUpperCase().includes('FIND') || p.toUpperCase().includes('SEARCH'))) {
+      programPurpose = 'Search/Find';
+      inputType = 'search criteria';
+    }
+    
+    diagram += `    participant Logic as 📐 ${programPurpose}\n\n`;
+    diagram += `    autonumber\n`;
+    diagram += `    User->>CLI: Start COBOL program\n`;
+    diagram += `    CLI->>User: Prompt for ${inputType}\n`;
+    diagram += `    User->>CLI: Input data\n`;
+    
+    // Map procedures to actual flow
+    if (procedures.length > 0) {
+      // First procedure typically validates
+      if (procedures[0]) {
+        diagram += `    CLI->>Logic: ${procedures[0].replace(/-/g, ' ')}\n`;
+      }
+      
+      // Middle procedures do computation
+      for (let i = 1; i < Math.min(procedures.length, 4); i++) {
+        const procName = procedures[i].replace(/-/g, ' ');
+        if (i === procedures.length - 1) {
+          // Last one returns result
+          diagram += `    Logic->>Logic: ${procName}\n`;
+          diagram += `    Logic-->>CLI: Result\n`;
+        } else {
+          diagram += `    Logic->>Logic: ${procName}\n`;
+        }
+      }
+    } else {
+      diagram += `    CLI->>Logic: Execute computation\n`;
+      diagram += `    Logic-->>CLI: Result\n`;
+    }
+    
+    diagram += `    CLI-->>User: Display result\n`;
+    return diagram;
+  }
+
+  // Utility/CLI sequence (generic fallback)
   if (analysis.isUtility) {
     diagram += `    actor User as User\n`;
     diagram += `    participant CLI as CLI Application\n`;
     diagram += `    participant Logic as Computation\n\n`;
     diagram += `    autonumber\n`;
     diagram += `    User->>CLI: Start program\n`;
-    diagram += `    CLI->>User: Prompt for number\n`;
+    diagram += `    CLI->>User: Prompt for input\n`;
     diagram += `    User->>CLI: Enter value\n`;
-    diagram += `    CLI->>Logic: Validate & compute sqrt\n`;
+    diagram += `    CLI->>Logic: Validate & process\n`;
     diagram += `    Logic-->>CLI: Result\n`;
     diagram += `    CLI-->>User: Print result\n`;
     return diagram;
